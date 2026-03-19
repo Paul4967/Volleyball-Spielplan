@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volleyball Live Dashboard</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --accent-red: #ff4d4d;
+            --accent-green: #22c55e;
+            --border-color: #f1f5f9;
+            --break-bg: #f8fafc;
+            --gold: #fbbf24;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; padding: 10px; }
+
+        .dashboard { width: 100%; max-width: 1000px; background: var(--card-bg); border-radius: 24px; overflow: hidden; margin-bottom: 20px; }
+        .nav-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); background: #fff; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+        .nav-item { font-size: 12px; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 1px; }
+
+        .content { padding: 15px; }
+        .match-list { display: flex; flex-direction: column; gap: 12px; }
+
+        /* Desktop Grid */
+        .match-row {
+            display: grid;
+            grid-template-columns: 80px 90px 1fr 30px 1fr 60px;
+            align-items: center;
+            padding: 18px 24px;
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            gap: 15px;
+        }
+
+        .match-row.is-live { background-color: #fff1f1; border-color: var(--accent-red); box-shadow: 0 0 15px rgba(255, 77, 77, 0.1); }
+        .is-winner .team-name { color: var(--accent-green); font-weight: 800; }
+        .is-winner .team-icon { ring: 2px solid var(--accent-green); }
+        .is-loser { opacity: 0.4; filter: grayscale(1); }
+
+        .frame-finale { border: 2px solid var(--gold); background: linear-gradient(90deg, #fff 0%, #fff9e6 100%); }
+        .frame-halbfinale { border: 2px solid #cbd5e1; }
+        
+        .break-row { display: flex; background: var(--break-bg); border: 1px dashed #cbd5e1; color: var(--text-muted); font-weight: 600; pointer-events: none; }
+
+        .time-box { font-size: 13px; font-weight: 800; }
+        .field-label { font-size: 10px; color: var(--text-muted); display: block; font-weight: 500; }
+        
+        .status-container { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .status-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; text-align: center; }
+        .status-live { background: var(--accent-red); color: white; }
+        .status-planned { background: #f1f5f9; color: var(--text-muted); }
+        .status-finished { background: #dcfce7; color: #166534; }
+        
+        .countdown-timer { font-size: 11px; font-weight: 700; color: var(--accent-red); }
+
+        .team-container { display: flex; align-items: center; gap: 10px; }
+        .team-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .team-name { font-size: 14px; font-weight: 600; }
+        .team-class { font-size: 11px; color: var(--text-muted); display: block; font-weight: 400; }
+
+        .vs-divider { text-align: center; color: var(--accent-green); font-weight: 900; font-size: 10px; opacity: 0.4; }
+        .score-display { text-align: right; font-weight: 800; font-size: 18px; color: var(--text-main); }
+
+        /* MOBILE STACKED LAYOUT */
+        @media (max-width: 600px) {
+            .match-row {
+                grid-template-columns: 70px 1fr 60px;
+                grid-template-areas: 
+                    "time team1 score"
+                    "status team2 score";
+                gap: 8px 12px;
+                padding: 15px;
+            }
+            .time-box { grid-area: time; align-self: start; }
+            .status-container { grid-area: status; align-items: flex-start; }
+            .team-container:nth-of-type(1) { grid-area: team1; margin-bottom: 2px; }
+            .team-container:nth-of-type(2) { grid-area: team2; }
+            .vs-divider { display: none; }
+            .score-display { 
+                grid-area: score; 
+                display: flex; 
+                align-items: center; 
+                justify-content: flex-end; 
+                font-size: 22px; 
+                border-left: 1px solid var(--border-color);
+                padding-left: 10px;
+            }
+        }
+
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+        .modal-card { background: white; padding: 30px; border-radius: 24px; width: 100%; max-width: 360px; text-align: center; }
+        .control-group { display: flex; justify-content: space-around; align-items: center; margin: 25px 0; padding: 20px; background: #f8fafc; border-radius: 16px; }
+        .points { font-size: 44px; font-weight: 800; min-width: 50px; }
+        .btn-round { width: 48px; height: 48px; border-radius: 14px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-size: 22px; touch-action: manipulation; }
+        .save-btn { width: 100%; padding: 18px; background: var(--text-main); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="nav-header">
+        <div class="nav-item">🏆 VOLLEYBALL TURNIERPLAN 2026</div>
+        <div id="clock" style="font-weight: 600; color: var(--text-muted); font-size: 13px;">00:00:00</div>
+    </div>
+    <div class="content">
+        <div class="match-list" id="main-container"></div>
+    </div>
+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-card">
+        <h2 id="mTitle">Spielstand</h2>
+        <p id="mTeams" style="font-size: 14px; color: var(--text-muted); margin-top: 8px;"></p>
+        <div class="control-group">
+            <div>
+                <button class="btn-round" onclick="upd(1,1)">+</button>
+                <div class="points" id="s1">0</div>
+                <button class="btn-round" onclick="upd(1,-1)">-</button>
+            </div>
+            <div style="font-weight: 800; font-size: 28px; color: #cbd5e1;">:</div>
+            <div>
+                <button class="btn-round" onclick="upd(2,1)">+</button>
+                <div class="points" id="s2">0</div>
+                <button class="btn-round" onclick="upd(2,-1)">-</button>
+            </div>
+        </div>
+        <button class="save-btn" onclick="closeModal()">Fertig</button>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwOqrHxTizp2Mm8M62xyDwrfKeEEQ05R4o4gXJ7FGGwSqkbKDJCQ9LsqfWhMKSlzWhB_g/exec"; // PASTE YOUR URL HERE
+    const GAME_DURATION_MINS = 12;
+    const teamColors = {};
+    let tournamentData = [];
+    let activeIdx = null;
+
+    function getColor(name) {
+        if (!teamColors[name]) {
+            const hues = [210, 195, 260, 145, 335, 30, 175, 285];
+            const hue = hues[Object.keys(teamColors).length % hues.length];
+            teamColors[name] = `hsl(${hue}, 70%, 45%)`;
+        }
+        return teamColors[name];
+    }
+
+    // Fetch data from Google Sheets
+    async function fetchData() {
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            tournamentData = data;
+            render();
+        } catch (e) {
+            console.error("Fehler beim Laden der Daten:", e);
+        }
+    }
+
+    // Push score updates to Google Sheets
+    async function syncScore(index, s1, s2) {
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ index, s1, s2 })
+            });
+        } catch (e) {
+            console.error("Fehler beim Speichern:", e);
+        }
+    }
+
+    function render() {
+        const container = document.getElementById("main-container");
+        if (!tournamentData.length) {
+            container.innerHTML = "<p style='text-align:center; padding:20px;'>Lade Turnierdaten...</p>";
+            return;
+        }
+
+        container.innerHTML = "";
+        const now = new Date();
+        const curSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        document.getElementById('clock').innerText = now.toLocaleTimeString();
+
+        tournamentData.forEach((item, i) => {
+            if (item.isBreak === true || item.isBreak === "TRUE") {
+                const bRow = document.createElement("div");
+                bRow.className = "match-row break-row";
+                bRow.innerHTML = `<div class="time-box">${item.time}</div><div>${item.label}</div>`;
+                container.appendChild(bRow);
+                return;
+            }
+
+            const [h, m] = item.time.split(":").map(Number);
+            const startSecs = h * 3600 + m * 60;
+            const endSecs = startSecs + (GAME_DURATION_MINS * 60);
+
+            let statusBadge = '<div class="status-badge status-planned">PLANT</div>';
+            let timerHtml = '', liveClass = '', t1Class = '', t2Class = '';
+
+            if (curSecs >= startSecs && curSecs < endSecs) {
+                statusBadge = '<div class="status-badge status-live">LIVE</div>';
+                liveClass = 'is-live';
+                const remaining = endSecs - curSecs;
+                timerHtml = `<div class="countdown-timer">${Math.floor(remaining/60)}:${(remaining%60).toString().padStart(2,'0')}</div>`;
+            } else if (curSecs >= endSecs) {
+                statusBadge = '<div class="status-badge status-finished">ENDE</div>';
+                if (item.s1 > item.s2) { t1Class = 'is-winner'; t2Class = 'is-loser'; }
+                else if (item.s2 > item.s1) { t2Class = 'is-winner'; t1Class = 'is-loser'; }
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const allowModal = params.get("key") === "aNgLWh3dclm7H15raKg4iJ8R";
+
+            const row = document.createElement("div");
+            row.className = `match-row ${item.phase === "Finale" ? "frame-finale" : ""} ${liveClass}`;
+
+            row.onclick = () => {
+                if (allowModal) {
+                    openModal(i);
+                }
+            };
+
+            row.innerHTML = `
+                <div class="time-box">${item.time}<span class="field-label">${item.field}</span></div>
+                <div class="status-container">${statusBadge}${timerHtml}</div>
+                <div class="team-container ${t1Class}">
+                    <div class="team-icon" style="background:${getColor(item.t1)}"><i data-lucide="volleyball"></i></div>
+                    <div class="team-name">${item.t1} <span class="team-class">Klasse ${item.c1}</span></div>
+                </div>
+                <div class="vs-divider">VS</div>
+                <div class="team-container ${t2Class}">
+                    <div class="team-icon" style="background:${getColor(item.t2)}"><i data-lucide="volleyball"></i></div>
+                    <div class="team-name">${item.t2} <span class="team-class">Klasse ${item.c2}</span></div>
+                </div>
+                <div class="score-display">${item.s1}:${item.s2}</div>
+            `;
+
+            container.appendChild(row);
+        });
+        lucide.createIcons();
+    }
+
+    function openModal(i) {
+        activeIdx = i;
+        document.getElementById("modal").style.display = "flex";
+        document.getElementById("mTeams").innerText = `${tournamentData[i].t1} vs ${tournamentData[i].t2}`;
+        document.getElementById("s1").innerText = tournamentData[i].s1;
+        document.getElementById("s2").innerText = tournamentData[i].s2;
+    }
+
+    function upd(t, d) {
+        const key = t === 1 ? 's1' : 's2';
+        tournamentData[activeIdx][key] = Math.max(0, parseInt(tournamentData[activeIdx][key]) + d);
+        document.getElementById("s" + t).innerText = tournamentData[activeIdx][key];
+    }
+
+    async function closeModal() {
+        document.getElementById("modal").style.display = "none";
+        // Immediately sync to Sheets
+        await syncScore(activeIdx, tournamentData[activeIdx].s1, tournamentData[activeIdx].s2);
+        render();
+    }
+
+    // Refresh data every 30 seconds
+    setInterval(fetchData, 30000);
+    // Refresh clock/UI every second
+    setInterval(render, 1000);
+    
+    // Initial Load
+    fetchData();
+</script>
+
+</body>
+</html>
