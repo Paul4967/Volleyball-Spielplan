@@ -259,10 +259,22 @@
         document.getElementById("s2").innerText = tournamentData[i].s2;
     }
 
-    function upd(t, d) {
+    async function upd(t, d) {
         const key = t === 1 ? 's1' : 's2';
-        tournamentData[activeIdx][key] = Math.max(0, parseInt(tournamentData[activeIdx][key]) + d);
-        document.getElementById("s" + t).innerText = tournamentData[activeIdx][key];
+        tournamentData[activeIdx][key] = Math.max(
+            0,
+            parseInt(tournamentData[activeIdx][key]) + d
+        );
+    
+        document.getElementById("s" + t).innerText =
+            tournamentData[activeIdx][key];
+    
+        // 🔥 NEW: sync immediately on change
+        await syncScore(
+            activeIdx,
+            tournamentData[activeIdx].s1,
+            tournamentData[activeIdx].s2
+        );
     }
 
     async function closeModal() {
